@@ -1,6 +1,7 @@
 import Header from "./components/Header";
 import Banner from "./components/Banner";
 import FeatureSection from "./components/FeatureSection";
+import ProductList from "./components/ProductList";
 import Footer from "./components/Footer";
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
       <Header />
       <Banner />
       <FeatureSection />
+      <ProductList />
       <Footer />
     </>
   );
