@@ -1,14 +1,52 @@
-function Header() {
+import { NavLink } from 'react-router-dom';
+
+export const Header = ({ title }) => {
+  const navItems = [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Sản phẩm', to: '/products' },
+    { label: 'Giỏ hàng', to: '/cart' },
+    { label: 'Đăng nhập', to: '/login' },
+  ];
+
   return (
-    <header style={{ background: "#1a1a2e", color: "white", padding: "1rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <h1 style={{ margin: 0 }}>🛍️ ShopHub</h1>
-      <nav>
-        <a href="/" style={{ color: "white", marginRight: "1rem", textDecoration: "none" }}>Trang chủ</a>
-        <a href="/products" style={{ color: "white", marginRight: "1rem", textDecoration: "none" }}>Sản phẩm</a>
-        <a href="/cart" style={{ color: "white", textDecoration: "none" }}>Giỏ hàng 🛒</a>
+    <header style={{
+      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+      padding: '0 2rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: '64px',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ fontSize: '1.8rem' }}>🛍️</span>
+        <span style={{ color: 'white', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '1px' }}>
+          {title}
+        </span>
+      </div>
+      <nav style={{ display: 'flex', gap: '0.5rem' }}>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/'}
+            style={({ isActive }) => ({
+              padding: '0.4rem 1rem',
+              borderRadius: '20px',
+              color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.8)',
+              background: isActive ? 'white' : 'transparent',
+              fontWeight: isActive ? 700 : 400,
+              fontSize: '14px',
+              transition: 'all 0.2s',
+            })}
+          >
+            {item.label}
+          </NavLink>
+        ))}
       </nav>
     </header>
   );
-}
-
-export default Header;
+};
