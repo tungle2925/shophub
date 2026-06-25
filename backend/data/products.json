@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "name": "Áo thun basic",
+    "price": 150000,
+    "category": "Thời trang",
+    "description": "Áo thun cotton mềm mịn thoáng mát",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 80000
+  },
+  {
+    "id": 2,
+    "name": "Tai nghe không dây",
+    "price": 890000,
+    "category": "Điện tử",
+    "description": "Bluetooth 5.0, pin 20h, âm thanh chuẩn",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 500000
+  },
+  {
+    "id": 3,
+    "name": "Giày sneaker",
+    "price": 650000,
+    "category": "Giày dép",
+    "description": "Đế êm, phù hợp đi hàng ngày",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 300000
+  },
+  {
+    "id": 4,
+    "name": "Balo laptop",
+    "price": 450000,
+    "category": "Phụ kiện",
+    "description": "Chống nước, ngăn laptop 15 inch",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 200000
+  },
+  {
+    "id": 5,
+    "name": "Đồng hồ thông minh",
+    "price": 1200000,
+    "category": "Điện tử",
+    "description": "Theo dõi sức khỏe, pin 7 ngày",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 700000
+  },
+  {
+    "id": 6,
+    "name": "Quần jeans",
+    "price": 350000,
+    "category": "Thời trang",
+    "description": "Jeans co giãn thoải mái",
+    "imagePath": "https://placehold.co/300x200",
+    "costPrice": 150000
+  }
+]
