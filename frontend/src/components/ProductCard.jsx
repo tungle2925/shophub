@@ -50,7 +50,7 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description }
           {description && description.length > 60 ? `${description.slice(0, 60)}...` : description}
         </p>
         <p style={{ fontSize: '1.2rem', fontWeight: 700, color: '#e94560' }}>
-          ${price}
+          {price.toLocaleString('vi-VN')}₫
         </p>
         <Link
           to={`/products/${id}`}

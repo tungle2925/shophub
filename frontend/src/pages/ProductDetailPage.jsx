@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import { productsApi } from '../api/productsapi';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -10,22 +10,13 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     const fetchProduct = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const res = await axios.get(`https://dummyjson.com/products/${id}`);
-        const item = res.data;
-        setProduct({
-          id: item.id,
-          name: item.title,
-          price: item.price,
-          category: item.category,
-          imageUrl: item.thumbnail,
-          description: item.description,
-          rating: item.rating,
-          stock: item.stock,
-          brand: item.brand,
-        });
+        const p = await productsApi.getById(id);
+        setProduct(p);
       } catch (err) {
-        setError('Không tìm thấy sản phẩm.');
+        setError('Could not load product details from API.');
       } finally {
         setLoading(false);
       }
@@ -33,18 +24,9 @@ const ProductDetailPage = () => {
     fetchProduct();
   }, [id]);
 
-  if (loading) return (
-    <div style={{ padding: '4rem', textAlign: 'center' }}>
-      <p style={{ fontSize: '1.2rem', color: '#888' }}>⏳ Đang tải sản phẩm...</p>
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ padding: '4rem', textAlign: 'center' }}>
-      <p style={{ color: '#e94560', fontSize: '1.2rem' }}>{error}</p>
-      <Link to="/products" style={{ color: '#1976d2', marginTop: '1rem', display: 'inline-block' }}>← Quay lại</Link>
-    </div>
-  );
+  if (loading) return <p style={{ padding: '24px' }}>⏳ Đang tải sản phẩm...</p>;
+  if (error) return <p style={{ padding: '24px', color: 'red' }}>{error}</p>;
+  if (!product) return <p style={{ padding: '24px' }}>Không tìm thấy sản phẩm.</p>;
 
   return (
     <section style={{ padding: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
@@ -93,27 +75,12 @@ const ProductDetailPage = () => {
             {product.name}
           </h1>
 
-          {product.brand && (
-            <p style={{ color: '#888', fontSize: '14px', marginBottom: '1rem' }}>
-              Thương hiệu: <strong>{product.brand}</strong>
-            </p>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '2rem', fontWeight: 800, color: '#e94560' }}>
-              ${product.price}
-            </span>
-            <span style={{ background: '#fff3f5', color: '#e94560', padding: '4px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
-              ⭐ {product.rating}
-            </span>
-          </div>
+          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#e94560', marginBottom: '1rem' }}>
+            {product.price.toLocaleString('vi-VN')}₫
+          </p>
 
           <p style={{ color: '#555', lineHeight: 1.8, marginBottom: '1.5rem', fontSize: '15px' }}>
             {product.description}
-          </p>
-
-          <p style={{ color: product.stock > 0 ? '#27ae60' : '#e94560', fontWeight: 600, marginBottom: '1.5rem' }}>
-            {product.stock > 0 ? `✅ Còn hàng (${product.stock} sản phẩm)` : '❌ Hết hàng'}
           </p>
 
           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -126,6 +93,7 @@ const ProductDetailPage = () => {
               fontSize: '15px',
               fontWeight: 700,
               boxShadow: '0 4px 15px rgba(233,69,96,0.3)',
+              cursor: 'pointer',
             }}>
               🛒 Thêm vào giỏ
             </button>
@@ -137,6 +105,7 @@ const ProductDetailPage = () => {
               borderRadius: '10px',
               fontSize: '15px',
               fontWeight: 700,
+              cursor: 'pointer',
             }}>
               ❤️ Yêu thích
             </button>
