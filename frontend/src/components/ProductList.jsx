@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
 import { ProductCard } from "./ProductCard";
-import { getProducts } from "../api";
+import { productsApi } from "../api/productsapi";
 
 function ProductList() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    getProducts({ size: 6 })
-      .then(res => setItems(res.data.items))
-      .catch(err => console.error(err));
+    const fetchProducts = async () => {
+      try {
+        const data = await productsApi.getAll();
+        setItems(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchProducts();
   }, []);
 
   return (

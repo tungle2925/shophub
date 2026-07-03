@@ -17,8 +17,8 @@ function ProductsPage() {
       setError("");
       try {
         const data = await productsApi.getAll({ size: 100 });
-        setAllProducts(data.items);
-        setItems(data.items);
+        setAllProducts(data);
+        setItems(data);
       } catch (err) {
         setError("Could not load products from API.");
       } finally {

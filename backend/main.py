@@ -1,34 +1,31 @@
-import json
-import os
-import uuid
-from typing import Optional, List
-
-import aiofiles
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from sqlmodel import SQLModel, Field, Session, create_engine, select
+from typing import Optional, List
+import os
 
-# ─── App & CORS ───────────────────────────────────────────────
-app = FastAPI(title="ShopHub Product API", version="1.1.0")
+# ─── Database ────────────────────────────────────────────────
+DATABASE_URL = "postgresql://postgres:shophub123@localhost:5432/shophub_db"
+engine = create_engine(DATABASE_URL, echo=True)
 
-origins = ["http://localhost:5173"]
+# ─── Models ──────────────────────────────────────────────────
+class Product(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(min_length=3, max_length=100)
+    price: float = Field(gt=0)
+    category: str = Field(min_length=3, max_length=50)
+    description: str
+    image_path: str
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
-)
+class ProductCreate(SQLModel):
+    name: str = Field(min_length=3, max_length=100)
+    price: float = Field(gt=0)
+    category: str = Field(min_length=3, max_length=50)
+    description: str
+    imageUrl: str
 
-# ─── Paths ────────────────────────────────────────────────────
-DATA_FILE = os.path.join(os.path.dirname(__file__), "data", "products.json")
-IMAGE_DIR = os.path.join(os.path.dirname(__file__), "data_images")
-os.makedirs(IMAGE_DIR, exist_ok=True)
-
-# ─── Schemas ──────────────────────────────────────────────────
-class ProductPublic(BaseModel):
+class ProductRead(SQLModel):
     id: int
     name: str
     price: float
@@ -36,179 +33,132 @@ class ProductPublic(BaseModel):
     description: str
     imageUrl: str
 
-class ProductCreate(BaseModel):
-    name: str = Field(..., min_length=3, max_length=100)
-    price: float = Field(..., gt=0)
-    category: str = Field(..., min_length=3, max_length=50)
-    description: str = Field(..., min_length=5)
+class ProductUpdate(SQLModel):
+    name: Optional[str] = None
+    price: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
     imageUrl: Optional[str] = None
 
-class ProductUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=3, max_length=100)
-    price: Optional[float] = Field(None, gt=0)
-    category: Optional[str] = Field(None, min_length=3, max_length=50)
-    description: Optional[str] = Field(None, min_length=5)
-    imageUrl: Optional[str] = None
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    full_name: str
+    password_hash: str
+    role: str = Field(default="customer")
 
-class ProductListResponse(BaseModel):
-    total: int
-    page: int
-    size: int
-    items: List[ProductPublic]
+class UserCreate(SQLModel):
+    email: str
+    full_name: str
+    password: str
+    role: Optional[str] = "customer"
 
-# ─── Helpers ──────────────────────────────────────────────────
-def read_products():
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+class UserRead(SQLModel):
+    id: int
+    email: str
+    full_name: str
+    role: str
 
-def write_products(products):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
+# ─── App ─────────────────────────────────────────────────────
+app = FastAPI(title="ShopHub API with PostgreSQL", version="2.0.0")
 
-def to_public(p: dict) -> ProductPublic:
-    image_path = p.get("imagePath", "")
-    if image_path.startswith("http"):
-        image_url = image_path
-    else:
-        filename = os.path.basename(image_path)
-        image_url = f"/images/{filename}"
-    return ProductPublic(
-        id=p["id"],
-        name=p["name"],
-        price=p["price"],
-        category=p["category"],
-        description=p["description"],
-        imageUrl=image_url,
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
 
-def next_id(products):
-    return max((p["id"] for p in products), default=0) + 1
+# ─── Create Tables ───────────────────────────────────────────
+@app.on_event("startup")
+def on_startup():
+    SQLModel.metadata.create_all(engine)
 
-# ─── Routes ───────────────────────────────────────────────────
+# ─── Dependency ──────────────────────────────────────────────
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+IMAGE_DIR = os.path.join(os.path.dirname(__file__), "data_images")
+
+# ─── Routes ──────────────────────────────────────────────────
 @app.get("/")
 def root():
-    return {"message": "ShopHub API đang chạy!"}
+    return {"message": "ShopHub API with PostgreSQL đang chạy!"}
 
-@app.get("/products", response_model=ProductListResponse)
+@app.get("/products", response_model=List[ProductRead])
 def get_products(
     category: Optional[str] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
     search: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    session: Session = Depends(get_session)
 ):
-    products = read_products()
-
+    query = select(Product)
     if category:
-        products = [p for p in products if p["category"].lower() == category.lower()]
-    if min_price is not None:
-        products = [p for p in products if p["price"] >= min_price]
-    if max_price is not None:
-        products = [p for p in products if p["price"] <= max_price]
+        query = query.where(Product.category == category)
     if search:
-        products = [p for p in products if search.lower() in p["name"].lower() or search.lower() in p["description"].lower()]
+        query = query.where(Product.name.ilike(f"%{search}%"))
+    products = session.exec(query).all()
+    return [ProductRead(
+        id=p.id, name=p.name, price=p.price,
+        category=p.category, description=p.description,
+        imageUrl=p.image_path
+    ) for p in products]
 
-    total = len(products)
-    start = (page - 1) * size
-    end = start + size
-    items = [to_public(p) for p in products[start:end]]
+@app.get("/products/{product_id}", response_model=ProductRead)
+def get_product(product_id: int, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    return ProductRead(
+        id=product.id, name=product.name, price=product.price,
+        category=product.category, description=product.description,
+        imageUrl=product.image_path
+    )
 
-    return ProductListResponse(total=total, page=page, size=size, items=items)
+@app.post("/products", response_model=ProductRead, status_code=201)
+def create_product(payload: ProductCreate, session: Session = Depends(get_session)):
+    product = Product(
+        name=payload.name, price=payload.price,
+        category=payload.category, description=payload.description,
+        image_path=payload.imageUrl
+    )
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return ProductRead(
+        id=product.id, name=product.name, price=product.price,
+        category=product.category, description=product.description,
+        imageUrl=product.image_path
+    )
 
-@app.get("/products/{product_id}", response_model=ProductPublic)
-def get_product(product_id: int):
-    products = read_products()
-    for p in products:
-        if p["id"] == product_id:
-            return to_public(p)
-    raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-
-@app.post("/products", response_model=ProductPublic, status_code=201)
-async def create_product(
-    name: str = Form(...),
-    price: float = Form(...),
-    category: str = Form(...),
-    description: str = Form(...),
-    imageUrl: Optional[str] = Form(None),
-    image_file: Optional[UploadFile] = File(None),
-):
-    products = read_products()
-
-    if image_file:
-        ext = os.path.splitext(image_file.filename)[1]
-        filename = f"{uuid.uuid4()}{ext}"
-        filepath = os.path.join(IMAGE_DIR, filename)
-        async with aiofiles.open(filepath, "wb") as f:
-            content = await image_file.read()
-            await f.write(content)
-        image_path = f"data_images/{filename}"
-    elif imageUrl:
-        image_path = imageUrl
-    else:
-        raise HTTPException(status_code=400, detail="Cần cung cấp ảnh (file hoặc URL)")
-
-    new_product = {
-        "id": next_id(products),
-        "name": name,
-        "price": price,
-        "category": category,
-        "description": description,
-        "imagePath": image_path,
-        "costPrice": None,
-    }
-    products.append(new_product)
-    write_products(products)
-    return to_public(new_product)
-
-@app.put("/products/{product_id}", response_model=ProductPublic)
-async def update_product(
-    product_id: int,
-    name: Optional[str] = Form(None),
-    price: Optional[float] = Form(None),
-    category: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    imageUrl: Optional[str] = Form(None),
-    image_file: Optional[UploadFile] = File(None),
-):
-    products = read_products()
-    for i, p in enumerate(products):
-        if p["id"] == product_id:
-            if name: p["name"] = name
-            if price: p["price"] = price
-            if category: p["category"] = category
-            if description: p["description"] = description
-
-            if image_file:
-                ext = os.path.splitext(image_file.filename)[1]
-                filename = f"{uuid.uuid4()}{ext}"
-                filepath = os.path.join(IMAGE_DIR, filename)
-                async with aiofiles.open(filepath, "wb") as f:
-                    content = await image_file.read()
-                    await f.write(content)
-                p["imagePath"] = f"data_images/{filename}"
-            elif imageUrl:
-                p["imagePath"] = imageUrl
-
-            products[i] = p
-            write_products(products)
-            return to_public(p)
-    raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+@app.put("/products/{product_id}", response_model=ProductRead)
+def update_product(product_id: int, payload: ProductUpdate, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    if payload.name is not None: product.name = payload.name
+    if payload.price is not None: product.price = payload.price
+    if payload.category is not None: product.category = payload.category
+    if payload.description is not None: product.description = payload.description
+    if payload.imageUrl is not None: product.image_path = payload.imageUrl
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return ProductRead(
+        id=product.id, name=product.name, price=product.price,
+        category=product.category, description=product.description,
+        imageUrl=product.image_path
+    )
 
 @app.delete("/products/{product_id}", status_code=204)
-def delete_product(product_id: int):
-    products = read_products()
-    for i, p in enumerate(products):
-        if p["id"] == product_id:
-            image_path = p.get("imagePath", "")
-            if image_path.startswith("data_images/"):
-                full_path = os.path.join(os.path.dirname(__file__), image_path)
-                if os.path.exists(full_path):
-                    os.remove(full_path)
-            products.pop(i)
-            write_products(products)
-            return
-    raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+def delete_product(product_id: int, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    session.delete(product)
+    session.commit()
+    return
 
 @app.get("/images/{filename}")
 def get_image(filename: str):
