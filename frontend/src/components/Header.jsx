@@ -1,51 +1,99 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { getUser, clearToken } from '../auth/token';
 
 export const Header = ({ title }) => {
+  const navigate = useNavigate();
+  const user = getUser();
+
+  const handleLogout = () => {
+    clearToken();
+    navigate('/login');
+  };
+
   const navItems = [
     { label: 'Trang chủ', to: '/' },
     { label: 'Sản phẩm', to: '/products' },
     { label: 'Giỏ hàng', to: '/cart' },
-    { label: 'Đăng nhập', to: '/login' },
   ];
 
   return (
     <header style={{
       background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-      padding: '0 2rem',
+      padding: '0 3rem',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      height: '64px',
+      height: '70px',
       boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
       position: 'sticky',
       top: 0,
       zIndex: 100,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '1.8rem' }}>🛍️</span>
-        <span style={{ color: 'white', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '1px' }}>
-          {title}
+        <span style={{ fontSize: '2rem' }}>🛍️</span>
+        <span style={{ color: 'white', fontSize: '1.6rem', fontWeight: 800, letterSpacing: '1px' }}>
+          Shop<span style={{ color: '#e94560' }}>Hub</span>
         </span>
       </div>
-      <nav style={{ display: 'flex', gap: '0.5rem' }}>
+
+      <nav style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             style={({ isActive }) => ({
-              padding: '0.4rem 1rem',
+              padding: '0.5rem 1.2rem',
               borderRadius: '20px',
-              color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.8)',
+              color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
               background: isActive ? 'white' : 'transparent',
               fontWeight: isActive ? 700 : 400,
-              fontSize: '14px',
+              fontSize: '15px',
               transition: 'all 0.2s',
+              border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
             })}
           >
             {item.label}
           </NavLink>
         ))}
+
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+            <span style={{ color: 'white', fontSize: '14px' }}>
+              👋 {user.full_name}
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '0.5rem 1.2rem',
+                borderRadius: '20px',
+                color: '#1a1a2e',
+                background: '#e94560',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Đăng xuất
+            </button>
+          </div>
+        ) : (
+          <NavLink
+            to="/login"
+            style={({ isActive }) => ({
+              padding: '0.5rem 1.2rem',
+              borderRadius: '20px',
+              color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
+              background: isActive ? 'white' : 'transparent',
+              fontWeight: isActive ? 700 : 400,
+              fontSize: '15px',
+              border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+            })}
+          >
+            Đăng nhập
+          </NavLink>
+        )}
       </nav>
     </header>
   );
