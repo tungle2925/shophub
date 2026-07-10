@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import SQLModel, Field, Session, create_engine, select
 from typing import Optional, List
 from passlib.context import CryptContext
@@ -47,7 +48,7 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     full_name: str
     password_hash: str
-    role: str = Field(default="customer")
+    role: str = Field(default="CUSTOMER")
 
 # ─── Schemas ─────────────────────────────────────────────────
 class ProductCreate(SQLModel):
@@ -76,7 +77,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     full_name: str
     password: str
-    role: Optional[str] = "customer"
+    role: Optional[str] = "CUSTOMER"
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -113,6 +114,37 @@ def get_session():
         yield session
 
 IMAGE_DIR = os.path.join(os.path.dirname(__file__), "data_images")
+
+# ─── Auth Dependencies ───────────────────────────────────────
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session)
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = session.get(User, int(user_id))
+    if user is None:
+        raise credentials_exception
+    return user
+
+def verify_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin permissions required",
+        )
+    return current_user
 
 # ─── Auth Routes ─────────────────────────────────────────────
 @app.post("/register", response_model=AuthUser, status_code=201, tags=["auth"])
@@ -169,7 +201,11 @@ def get_product(product_id: int, session: Session = Depends(get_session)):
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.post("/products", response_model=ProductRead, status_code=201, tags=["products"])
-def create_product(payload: ProductCreate, session: Session = Depends(get_session)):
+def create_product(
+    payload: ProductCreate,
+    session: Session = Depends(get_session),
+    admin: User = Depends(verify_admin)
+):
     product = Product(name=payload.name, price=payload.price, category=payload.category, description=payload.description, image_path=payload.imageUrl)
     session.add(product)
     session.commit()
@@ -177,7 +213,12 @@ def create_product(payload: ProductCreate, session: Session = Depends(get_sessio
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.put("/products/{product_id}", response_model=ProductRead, tags=["products"])
-def update_product(product_id: int, payload: ProductUpdate, session: Session = Depends(get_session)):
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -192,7 +233,11 @@ def update_product(product_id: int, payload: ProductUpdate, session: Session = D
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.delete("/products/{product_id}", status_code=204, tags=["products"])
-def delete_product(product_id: int, session: Session = Depends(get_session)):
+def delete_product(
+    product_id: int,
+    session: Session = Depends(get_session),
+    admin: User = Depends(verify_admin)
+):
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")

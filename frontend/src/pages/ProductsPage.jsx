@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { productsApi } from "../api/productsapi";
+import { useAuth } from "../auth/useAuth";
+import { getToken } from "../auth/token";
+import axiosClient from "../api/axiosClient";
 
 function ProductsPage() {
   const [allProducts, setAllProducts] = useState([]);
@@ -10,23 +14,44 @@ function ProductsPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await productsApi.getAll();
+      setAllProducts(data);
+      setItems(data);
+    } catch (err) {
+      setError("Could not load products from API.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await productsApi.getAll({ size: 100 });
-        setAllProducts(data);
-        setItems(data);
-      } catch (err) {
-        setError("Could not load products from API.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProducts();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Bạn có chắc muốn xóa sản phẩm này?')) return;
+    try {
+      const token = getToken();
+      await axiosClient.delete(`/products/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAllProducts(prev => prev.filter(p => p.id !== id));
+      setItems(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      if (err.response?.status === 403) {
+        alert('Bạn không có quyền xóa sản phẩm!');
+      } else {
+        alert('Xóa thất bại!');
+      }
+    }
+  };
 
   const categories = ["All", ...new Set(allProducts.map(p => p.category))];
 
@@ -54,6 +79,19 @@ function ProductsPage() {
       </div>
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+
+        {/* Admin: nút thêm sản phẩm */}
+        {isAdmin && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <button
+              onClick={() => navigate('/admin/products/new')}
+              style={{ background: '#27ae60', color: 'white', border: 'none', padding: '0.7rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+            >
+              ➕ Thêm sản phẩm mới
+            </button>
+          </div>
+        )}
+
         <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
           <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontSize: '1.1rem' }}>🔍</span>
           <input
@@ -69,7 +107,7 @@ function ProductsPage() {
             <button
               key={c}
               onClick={() => setCategory(c)}
-              style={{ padding: '0.4rem 1.2rem', borderRadius: '20px', border: '1.5px solid #1a1a2e', background: category === c ? '#1a1a2e' : 'white', color: category === c ? 'white' : '#1a1a2e', cursor: 'pointer', fontSize: '13px', fontWeight: category === c ? 700 : 400, textTransform: 'capitalize' }}
+              style={{ padding: '0.4rem 1.2rem', borderRadius: '20px', border: '1.5px solid #1a1a2e', background: category === c ? '#1a1a2e' : 'white', color: category === c ? 'white' : '#1a1a2e', cursor: 'pointer', fontSize: '13px', fontWeight: category === c ? 700 : 400 }}
             >
               {c}
             </button>
@@ -89,7 +127,7 @@ function ProductsPage() {
 
           <button
             onClick={() => { setKeyword(""); setCategory("All"); setSortBy("default"); }}
-            style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #ddd', background: 'white', fontSize: '14px', fontWeight: 500 }}
+            style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #ddd', background: 'white', fontSize: '14px' }}
           >
             ✕ Xóa bộ lọc
           </button>
@@ -115,6 +153,7 @@ function ProductsPage() {
                 category={p.category}
                 imageUrl={p.imageUrl}
                 description={p.description}
+                onDelete={isAdmin ? handleDelete : null}
               />
             ))}
           </div>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-export const ProductCard = ({ id, name, price, category, imageUrl, description }) => {
+export const ProductCard = ({ id, name, price, category, imageUrl, description, onDelete }) => {
   return (
     <div style={{
       background: 'white',
@@ -52,6 +52,7 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description }
         <p style={{ fontSize: '1.2rem', fontWeight: 700, color: '#e94560' }}>
           {price.toLocaleString('vi-VN')}₫
         </p>
+
         <Link
           to={`/products/${id}`}
           style={{
@@ -66,6 +67,24 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description }
         >
           View Details →
         </Link>
+
+        {onDelete && (
+          <button
+            onClick={() => onDelete(id)}
+            style={{
+              background: '#e94560',
+              color: 'white',
+              border: 'none',
+              padding: '0.6rem',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            🗑️ Xóa
+          </button>
+        )}
       </div>
     </div>
   );
