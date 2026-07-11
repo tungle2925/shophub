@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 
 export const ProductCard = ({ id, name, price, category, imageUrl, description, onDelete }) => {
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart({ id, name, price, imageUrl }, 1);
+  };
+
   return (
     <div style={{
       background: 'white',
@@ -52,6 +59,22 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description, 
         <p style={{ fontSize: '1.2rem', fontWeight: 700, color: '#e94560' }}>
           {price.toLocaleString('vi-VN')}₫
         </p>
+
+        <button
+          onClick={handleAddToCart}
+          style={{
+            background: 'linear-gradient(135deg, #e94560, #c0392b)',
+            color: 'white',
+            border: 'none',
+            padding: '0.6rem',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          🛒 Thêm vào giỏ
+        </button>
 
         <Link
           to={`/products/${id}`}

@@ -8,6 +8,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductCreatePage from './pages/ProductCreatePage';
+import CartPage from './pages/CartPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Footer from './components/Footer';
 
@@ -20,27 +21,11 @@ const HomePage = () => (
   </>
 );
 
-const CartPage = () => (
-  <div style={{ padding: '4rem 2rem', textAlign: 'center', minHeight: '60vh' }}>
-    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛒</div>
-    <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', color: '#1a1a2e' }}>Giỏ hàng trống</h2>
-    <p style={{ color: '#888' }}>Chức năng giỏ hàng sẽ được thêm vào buổi sau.</p>
-  </div>
-);
-
 const NotFound = () => (
   <div style={{ padding: '4rem 2rem', textAlign: 'center', minHeight: '60vh' }}>
     <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>404</div>
     <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', color: '#1a1a2e' }}>Trang không tồn tại</h2>
     <p style={{ color: '#888' }}>Trang bạn tìm kiếm không tồn tại.</p>
-  </div>
-);
-
-const AccessDenied = () => (
-  <div style={{ padding: '4rem 2rem', textAlign: 'center', minHeight: '60vh' }}>
-    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
-    <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', color: '#e94560' }}>Access Denied</h2>
-    <p style={{ color: '#888' }}>Bạn không có quyền truy cập trang này.</p>
   </div>
 );
 

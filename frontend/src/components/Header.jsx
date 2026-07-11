@@ -1,9 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearToken } from '../auth/token';
+import { useCart } from '../context/CartContext';
 
 export const Header = ({ title }) => {
   const navigate = useNavigate();
   const user = getUser();
+  const { totalQuantity } = useCart();
 
   const handleLogout = () => {
     clearToken();
@@ -13,7 +15,6 @@ export const Header = ({ title }) => {
   const navItems = [
     { label: 'Trang chủ', to: '/' },
     { label: 'Sản phẩm', to: '/products' },
-    { label: 'Giỏ hàng', to: '/cart' },
   ];
 
   return (
@@ -56,6 +57,42 @@ export const Header = ({ title }) => {
             {item.label}
           </NavLink>
         ))}
+
+        {/* Giỏ hàng với badge */}
+        <NavLink
+          to="/cart"
+          style={({ isActive }) => ({
+            padding: '0.5rem 1.2rem',
+            borderRadius: '20px',
+            color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
+            background: isActive ? 'white' : 'transparent',
+            fontWeight: isActive ? 700 : 400,
+            fontSize: '15px',
+            border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+          })}
+        >
+          🛒 Giỏ hàng
+          {totalQuantity > 0 && (
+            <span style={{
+              background: '#e94560',
+              color: 'white',
+              borderRadius: '50%',
+              width: '20px',
+              height: '20px',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {totalQuantity}
+            </span>
+          )}
+        </NavLink>
 
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { productsApi } from '../api/productsapi';
+import { useCart } from '../context/CartContext';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [added, setAdded] = useState(false);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -23,6 +26,13 @@ const ProductDetailPage = () => {
     };
     fetchProduct();
   }, [id]);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addToCart(product, 1);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
 
   if (loading) return <p style={{ padding: '24px' }}>⏳ Đang tải sản phẩm...</p>;
   if (error) return <p style={{ padding: '24px', color: 'red' }}>{error}</p>;
@@ -84,31 +94,37 @@ const ProductDetailPage = () => {
           </p>
 
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <button style={{
-              background: 'linear-gradient(135deg, #e94560, #c0392b)',
-              color: 'white',
-              border: 'none',
-              padding: '0.9rem 2rem',
-              borderRadius: '10px',
-              fontSize: '15px',
-              fontWeight: 700,
-              boxShadow: '0 4px 15px rgba(233,69,96,0.3)',
-              cursor: 'pointer',
-            }}>
-              🛒 Thêm vào giỏ
+            <button
+              onClick={handleAddToCart}
+              style={{
+                background: added ? '#27ae60' : 'linear-gradient(135deg, #e94560, #c0392b)',
+                color: 'white',
+                border: 'none',
+                padding: '0.9rem 2rem',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'background 0.3s',
+              }}
+            >
+              {added ? '✅ Đã thêm vào giỏ!' : '🛒 Thêm vào giỏ'}
             </button>
-            <button style={{
-              background: 'white',
-              color: '#1a1a2e',
-              border: '2px solid #1a1a2e',
-              padding: '0.9rem 2rem',
-              borderRadius: '10px',
-              fontSize: '15px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}>
-              ❤️ Yêu thích
-            </button>
+            <Link
+              to="/cart"
+              style={{
+                background: 'white',
+                color: '#1a1a2e',
+                border: '2px solid #1a1a2e',
+                padding: '0.9rem 2rem',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: 700,
+                textAlign: 'center',
+              }}
+            >
+              Xem giỏ hàng
+            </Link>
           </div>
         </div>
       </div>
