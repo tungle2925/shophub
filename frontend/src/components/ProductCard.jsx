@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
-export const ProductCard = ({ id, name, price, category, imageUrl, description, onDelete }) => {
+export const ProductCard = ({ id, name, price, category, imageUrl, description, isAdmin, onDelete }) => {
   const { addToCart } = useCart();
 
   const handleAddToCart = () => {
@@ -60,21 +60,23 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description, 
           {price.toLocaleString('vi-VN')}₫
         </p>
 
-        <button
-          onClick={handleAddToCart}
-          style={{
-            background: 'linear-gradient(135deg, #e94560, #c0392b)',
-            color: 'white',
-            border: 'none',
-            padding: '0.6rem',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          🛒 Thêm vào giỏ
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={handleAddToCart}
+            style={{
+              background: 'linear-gradient(135deg, #e94560, #c0392b)',
+              color: 'white',
+              border: 'none',
+              padding: '0.6rem',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            🛒 Thêm vào giỏ
+          </button>
+        )}
 
         <Link
           to={`/products/${id}`}
@@ -90,6 +92,23 @@ export const ProductCard = ({ id, name, price, category, imageUrl, description, 
         >
           View Details →
         </Link>
+
+        {isAdmin && (
+          <Link
+            to={`/admin/products/${id}/edit`}
+            style={{
+              background: '#f39c12',
+              color: 'white',
+              padding: '0.6rem',
+              borderRadius: '8px',
+              textAlign: 'center',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}
+          >
+            ✏️ Sửa
+          </Link>
+        )}
 
         {onDelete && (
           <button

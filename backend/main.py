@@ -2,12 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import SQLModel, Field, Session, create_engine, select
+from sqlmodel import SQLModel, Field, Session, create_engine, select, Relationship
 from typing import Optional, List
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 import os
 
 # ─── Database ────────────────────────────────────────────────
@@ -49,6 +49,22 @@ class User(SQLModel, table=True):
     full_name: str
     password_hash: str
     role: str = Field(default="CUSTOMER")
+
+class Order(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    status: str = Field(default="PLACED")
+    total_amount: float
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+
+class OrderItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    order_id: int = Field(foreign_key="order.id", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    product_name: str
+    product_price: float
+    quantity: int
+    line_total: float
 
 # ─── Schemas ─────────────────────────────────────────────────
 class ProductCreate(SQLModel):
@@ -94,6 +110,53 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: AuthUser
 
+class OrderItemCreate(BaseModel):
+    product_id: int
+    name: str
+    price: float
+    quantity: int
+
+class CheckoutRequest(BaseModel):
+    items: List[OrderItemCreate]
+
+class OrderItemRead(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    product_price: float
+    quantity: int
+    line_total: float
+    product_image: Optional[str] = None
+
+class OrderRead(BaseModel):
+    id: int
+    status: str
+    total_amount: float
+    created_at: str
+    items: List[OrderItemRead]
+
+class OrderSummary(BaseModel):
+    id: int
+    status: str
+    total_amount: float
+    created_at: str
+
+ALLOWED_STATUSES = ["PLACED", "PROCESSING", "SHIPPED", "COMPLETED", "CANCELED"]
+
+class OrderStatusUpdate(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status: {v}")
+        return v
+
+class OrderItemQuantityUpdate(BaseModel):
+    item_id: int
+    quantity: int = Field(..., gt=0)
+
 # ─── App ─────────────────────────────────────────────────────
 app = FastAPI(title="ShopHub API with PostgreSQL", version="2.0.0")
 
@@ -101,7 +164,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -122,10 +185,7 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session)
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-    )
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
@@ -140,10 +200,7 @@ def get_current_user(
 
 def verify_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "ADMIN":
-        raise HTTPException(
-            status_code=403,
-            detail="Admin permissions required",
-        )
+        raise HTTPException(status_code=403, detail="Admin permissions required")
     return current_user
 
 # ─── Auth Routes ─────────────────────────────────────────────
@@ -175,16 +232,12 @@ def login_user(payload: LoginRequest, session: Session = Depends(get_session)):
     )
 
 # ─── Product Routes ───────────────────────────────────────────
-@app.get("/")
+@app.get("/", tags=["default"])
 def root():
     return {"message": "ShopHub API with PostgreSQL đang chạy!"}
 
 @app.get("/products", response_model=List[ProductRead], tags=["products"])
-def get_products(
-    category: Optional[str] = None,
-    search: Optional[str] = None,
-    session: Session = Depends(get_session)
-):
+def get_products(category: Optional[str] = None, search: Optional[str] = None, session: Session = Depends(get_session)):
     query = select(Product)
     if category:
         query = query.where(Product.category == category)
@@ -201,11 +254,7 @@ def get_product(product_id: int, session: Session = Depends(get_session)):
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.post("/products", response_model=ProductRead, status_code=201, tags=["products"])
-def create_product(
-    payload: ProductCreate,
-    session: Session = Depends(get_session),
-    admin: User = Depends(verify_admin)
-):
+def create_product(payload: ProductCreate, session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
     product = Product(name=payload.name, price=payload.price, category=payload.category, description=payload.description, image_path=payload.imageUrl)
     session.add(product)
     session.commit()
@@ -213,12 +262,7 @@ def create_product(
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.put("/products/{product_id}", response_model=ProductRead, tags=["products"])
-def update_product(
-    product_id: int,
-    payload: ProductUpdate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
+def update_product(product_id: int, payload: ProductUpdate, session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -233,11 +277,7 @@ def update_product(
     return ProductRead(id=product.id, name=product.name, price=product.price, category=product.category, description=product.description, imageUrl=product.image_path)
 
 @app.delete("/products/{product_id}", status_code=204, tags=["products"])
-def delete_product(
-    product_id: int,
-    session: Session = Depends(get_session),
-    admin: User = Depends(verify_admin)
-):
+def delete_product(product_id: int, session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -251,3 +291,162 @@ def get_image(filename: str):
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh")
     return FileResponse(filepath)
+
+# ─── Helper: build OrderRead ─────────────────────────────────
+def build_order_read(order: Order, session: Session) -> OrderRead:
+    items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
+    item_reads = []
+    for oi in items:
+        product = session.get(Product, oi.product_id)
+        item_reads.append(OrderItemRead(
+            id=oi.id, product_id=oi.product_id, product_name=oi.product_name,
+            product_price=oi.product_price, quantity=oi.quantity, line_total=oi.line_total,
+            product_image=product.image_path if product else None
+        ))
+    return OrderRead(
+        id=order.id,
+        status=order.status,
+        total_amount=order.total_amount,
+        created_at=str(order.created_at),
+        items=item_reads
+    )
+
+# ─── Order Routes ─────────────────────────────────────────────
+@app.post("/orders/checkout", response_model=OrderRead, status_code=201, tags=["orders"])
+def checkout_order(payload: CheckoutRequest, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Cart is empty")
+    total_amount = sum(item.price * item.quantity for item in payload.items)
+    try:
+        order = Order(user_id=user.id, status="PLACED", total_amount=total_amount)
+        session.add(order)
+        session.flush()
+        for item in payload.items:
+            order_item = OrderItem(
+                order_id=order.id, product_id=item.product_id,
+                product_name=item.name, product_price=item.price,
+                quantity=item.quantity, line_total=item.price * item.quantity
+            )
+            session.add(order_item)
+        session.commit()
+        session.refresh(order)
+    except Exception:
+        session.rollback()
+        raise
+    return build_order_read(order, session)
+
+@app.get("/orders/my", response_model=List[OrderSummary], tags=["orders"])
+def get_my_orders(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    orders = session.exec(select(Order).where(Order.user_id == user.id).order_by(Order.created_at.desc())).all()
+    return [OrderSummary(id=o.id, status=o.status, total_amount=o.total_amount, created_at=str(o.created_at)) for o in orders]
+
+@app.get("/orders/admin/all", response_model=List[OrderSummary], tags=["orders"])
+def get_all_orders_admin(session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
+    orders = session.exec(select(Order).order_by(Order.created_at.desc())).all()
+    return [OrderSummary(id=o.id, status=o.status, total_amount=o.total_amount, created_at=str(o.created_at)) for o in orders]
+
+@app.get("/orders/{order_id}", response_model=OrderRead, tags=["orders"])
+def get_order_by_id(order_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != user.id and user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Not allowed")
+    return build_order_read(order, session)
+
+@app.post("/orders/{order_id}/items", response_model=OrderRead, tags=["orders"])
+def add_items_to_order(order_id: int, payload: CheckoutRequest, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    if order.status != "PLACED":
+        raise HTTPException(status_code=400, detail="Chỉ có thể thêm sản phẩm khi đơn còn ở trạng thái PLACED")
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Không có sản phẩm nào để thêm")
+
+    existing_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    for new_item in payload.items:
+        if new_item.quantity <= 0:
+            raise HTTPException(status_code=400, detail="Số lượng không hợp lệ")
+        matched = next((oi for oi in existing_items if oi.product_id == new_item.product_id), None)
+        if matched:
+            matched.quantity += new_item.quantity
+            matched.line_total = matched.quantity * matched.product_price
+            session.add(matched)
+        else:
+            order_item = OrderItem(
+                order_id=order.id, product_id=new_item.product_id,
+                product_name=new_item.name, product_price=new_item.price,
+                quantity=new_item.quantity, line_total=new_item.price * new_item.quantity
+            )
+            session.add(order_item)
+    session.commit()
+
+    all_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    order.total_amount = sum(oi.line_total for oi in all_items)
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return build_order_read(order, session)
+
+@app.patch("/orders/{order_id}/status", response_model=OrderRead, tags=["orders"])
+def admin_update_order_status(order_id: int, payload: OrderStatusUpdate, session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order.status = payload.status
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return build_order_read(order, session)
+
+@app.patch("/orders/{order_id}/items/quantity", response_model=OrderRead, tags=["orders"])
+def admin_update_item_quantity(order_id: int, payload: OrderItemQuantityUpdate, session: Session = Depends(get_session), admin: User = Depends(verify_admin)):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    item = session.exec(select(OrderItem).where(OrderItem.id == payload.item_id, OrderItem.order_id == order_id)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Order item not found")
+    item.quantity = payload.quantity
+    item.line_total = item.quantity * item.product_price
+    session.add(item)
+    all_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    order.total_amount = sum(oi.line_total for oi in all_items)
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return build_order_read(order, session)
+
+@app.post("/orders/{order_id}/items", response_model=OrderRead, tags=["orders"])
+def add_items_to_order(
+    order_id: int,
+    payload: CheckoutRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    if order.status != "PLACED":
+        raise HTTPException(status_code=400, detail="Chỉ có thể thêm sản phẩm khi đơn hàng đang PLACED")
+    for item in payload.items:
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=item.product_id,
+            product_name=item.name,
+            product_price=item.price,
+            quantity=item.quantity,
+            line_total=item.price * item.quantity,
+        )
+        session.add(order_item)
+    all_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    order.total_amount = sum(oi.line_total for oi in all_items) + sum(i.price * i.quantity for i in payload.items)
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return build_order_read(order, session)

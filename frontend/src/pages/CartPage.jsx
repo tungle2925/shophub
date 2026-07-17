@@ -1,8 +1,28 @@
+import { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ordersApi } from '../api/ordersApi';
 
 const CartPage = () => {
   const { items, removeFromCart, updateQuantity, totalQuantity, totalPrice, clearCart } = useCart();
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleCheckout = async () => {
+    if (items.length === 0) return;
+    setPlacingOrder(true);
+    setError('');
+    try {
+      const order = await ordersApi.checkout(items);
+      clearCart();
+      navigate(`/orders/${order.id}`);
+    } catch (err) {
+      setError('Đặt hàng thất bại, vui lòng thử lại.');
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -80,6 +100,8 @@ const CartPage = () => {
           </table>
         </div>
 
+        {error && <p style={{ color: 'red', textAlign: 'center', marginTop: '1rem' }}>{error}</p>}
+
         {/* Tổng tiền */}
         <div style={{ background: 'white', borderRadius: '16px', padding: '1.5rem 2rem', marginTop: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -96,9 +118,11 @@ const CartPage = () => {
               Xóa tất cả
             </button>
             <button
+              onClick={handleCheckout}
+              disabled={placingOrder}
               style={{ padding: '0.8rem 2rem', background: 'linear-gradient(135deg, #e94560, #c0392b)', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '15px' }}
             >
-              Thanh toán
+              {placingOrder ? 'Đang đặt hàng...' : 'Thanh toán'}
             </button>
           </div>
         </div>

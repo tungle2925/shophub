@@ -8,7 +8,11 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductCreatePage from './pages/ProductCreatePage';
+import ProductEditPage from './pages/ProductEditPage';
 import CartPage from './pages/CartPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
+import OrderDetailPage from './pages/OrderDetailPage';
+import AdminOrdersPage from './pages/AdminOrdersPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Footer from './components/Footer';
 
@@ -41,10 +45,37 @@ const App = () => (
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
+      {/* Protected routes (cần đăng nhập) */}
+      <Route path="/orders" element={
+        <ProtectedRoute>
+          <><OrderHistoryPage /><Footer /></>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders/:id" element={
+        <ProtectedRoute>
+          <><OrderDetailPage /><Footer /></>
+        </ProtectedRoute>
+      } />
+
       {/* Admin only routes */}
       <Route path="/admin/products/new" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <ProductCreatePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/products/:id/edit" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <><ProductEditPage /><Footer /></>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <><AdminOrdersPage /><Footer /></>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/:id" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <><OrderDetailPage /><Footer /></>
         </ProtectedRoute>
       } />
 

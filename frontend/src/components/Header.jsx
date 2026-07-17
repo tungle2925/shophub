@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 export const Header = ({ title }) => {
   const navigate = useNavigate();
   const user = getUser();
+  const isAdmin = user?.role === 'ADMIN';
   const { totalQuantity } = useCart();
 
   const handleLogout = () => {
@@ -16,6 +17,17 @@ export const Header = ({ title }) => {
     { label: 'Trang chủ', to: '/' },
     { label: 'Sản phẩm', to: '/products' },
   ];
+
+  const linkStyle = ({ isActive }) => ({
+    padding: '0.5rem 1.2rem',
+    borderRadius: '20px',
+    color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
+    background: isActive ? 'white' : 'transparent',
+    fontWeight: isActive ? 700 : 400,
+    fontSize: '15px',
+    transition: 'all 0.2s',
+    border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+  });
 
   return (
     <header style={{
@@ -39,10 +51,15 @@ export const Header = ({ title }) => {
 
       <nav style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
         {navItems.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.to === '/'} style={linkStyle}>
+            {item.label}
+          </NavLink>
+        ))}
+
+        {/* Giỏ hàng với badge - chỉ hiện với khách (không phải ADMIN) */}
+        {!isAdmin && (
           <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
+            to="/cart"
             style={({ isActive }) => ({
               padding: '0.5rem 1.2rem',
               borderRadius: '20px',
@@ -50,49 +67,46 @@ export const Header = ({ title }) => {
               background: isActive ? 'white' : 'transparent',
               fontWeight: isActive ? 700 : 400,
               fontSize: '15px',
-              transition: 'all 0.2s',
               border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             })}
           >
-            {item.label}
+            🛒 Giỏ hàng
+            {totalQuantity > 0 && (
+              <span style={{
+                background: '#e94560',
+                color: 'white',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {totalQuantity}
+              </span>
+            )}
           </NavLink>
-        ))}
+        )}
 
-        {/* Giỏ hàng với badge */}
-        <NavLink
-          to="/cart"
-          style={({ isActive }) => ({
-            padding: '0.5rem 1.2rem',
-            borderRadius: '20px',
-            color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
-            background: isActive ? 'white' : 'transparent',
-            fontWeight: isActive ? 700 : 400,
-            fontSize: '15px',
-            border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
-            position: 'relative',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          })}
-        >
-          🛒 Giỏ hàng
-          {totalQuantity > 0 && (
-            <span style={{
-              background: '#e94560',
-              color: 'white',
-              borderRadius: '50%',
-              width: '20px',
-              height: '20px',
-              fontSize: '11px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {totalQuantity}
-            </span>
-          )}
-        </NavLink>
+        {/* Đơn hàng của tôi - chỉ hiện với khách đã đăng nhập (không phải ADMIN) */}
+        {user && !isAdmin && (
+          <NavLink to="/orders" style={linkStyle}>
+            📦 Đơn hàng
+          </NavLink>
+        )}
+
+        {/* Quản lý đơn hàng - chỉ hiện với ADMIN */}
+        {isAdmin && (
+          <NavLink to="/admin/orders" style={linkStyle}>
+            🛠️ Quản lý đơn
+          </NavLink>
+        )}
 
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -116,18 +130,7 @@ export const Header = ({ title }) => {
             </button>
           </div>
         ) : (
-          <NavLink
-            to="/login"
-            style={({ isActive }) => ({
-              padding: '0.5rem 1.2rem',
-              borderRadius: '20px',
-              color: isActive ? '#1a1a2e' : 'rgba(255,255,255,0.85)',
-              background: isActive ? 'white' : 'transparent',
-              fontWeight: isActive ? 700 : 400,
-              fontSize: '15px',
-              border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
-            })}
-          >
+          <NavLink to="/login" style={linkStyle}>
             Đăng nhập
           </NavLink>
         )}

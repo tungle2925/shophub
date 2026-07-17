@@ -44,6 +44,7 @@ const RegisterPage = () => {
           <input
             type="email"
             name="email"
+            autoComplete="off"
             value={form.email}
             onChange={handleChange}
             required
@@ -57,6 +58,7 @@ const RegisterPage = () => {
           <input
             type="text"
             name="fullName"
+            autoComplete="off"
             value={form.fullName}
             onChange={handleChange}
             required
@@ -70,6 +72,7 @@ const RegisterPage = () => {
           <input
             type="password"
             name="password"
+            autoComplete="new-password"
             value={form.password}
             onChange={handleChange}
             required

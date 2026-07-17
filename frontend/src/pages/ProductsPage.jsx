@@ -153,6 +153,7 @@ function ProductsPage() {
                 category={p.category}
                 imageUrl={p.imageUrl}
                 description={p.description}
+                isAdmin={isAdmin}
                 onDelete={isAdmin ? handleDelete : null}
               />
             ))}

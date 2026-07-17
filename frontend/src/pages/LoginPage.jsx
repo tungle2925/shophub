@@ -43,6 +43,7 @@ const LoginPage = () => {
           <input
             type="email"
             name="email"
+            autoComplete="off"
             value={form.email}
             onChange={handleChange}
             required
@@ -56,6 +57,7 @@ const LoginPage = () => {
           <input
             type="password"
             name="password"
+            autoComplete="current-password"
             value={form.password}
             onChange={handleChange}
             required
